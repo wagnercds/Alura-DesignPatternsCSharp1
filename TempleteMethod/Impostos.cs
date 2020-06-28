@@ -111,7 +111,7 @@ namespace ConsoleApp12
         }
     }
 
-    class Program
+    class Impostos
     {
         static void Mainxx(string[] args)
         {

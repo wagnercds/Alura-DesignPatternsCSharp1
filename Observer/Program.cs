@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace Builder
 {
@@ -77,6 +78,7 @@ namespace Builder
         private DateTime _DataEmissao = DateTime.Now;
         private string _Observacoes;
         private List<ItemDaNota> _Itens = new List<ItemDaNota>();
+        private List<IAcaoNotaPosGeracao> _acoes = new List<IAcaoNotaPosGeracao>();
 
         public NotaFiscalBuilder ParaEmpresa(string razaoSocial)
         {
@@ -110,9 +112,15 @@ namespace Builder
             return this;
         }
 
+        public NotaFiscalBuilder AdicionaAcao(IAcaoNotaPosGeracao acao)
+        {
+            _acoes.Add(acao);
+            return this;
+        }
+
         public NotaFiscal Constroi()
         {
-            return new NotaFiscal(
+            var notaFiscal =  new NotaFiscal(
                 razaoSocial: _RazaoSocial,
                 CNPJ: _CNPJ,
                 valorBruto: _ValorBruto,
@@ -121,6 +129,48 @@ namespace Builder
                 observacoes: _Observacoes,
                 itens: _Itens
                 );
+
+            _acoes.ForEach(acao =>
+            {
+                acao.Executa(notaFiscal);
+            });
+            return notaFiscal;
+        }
+    }
+
+    interface IAcaoNotaPosGeracao
+    {
+        void Executa(NotaFiscal notaFiscal);
+    }
+
+    class EnviaEmail : IAcaoNotaPosGeracao
+    {
+         void IAcaoNotaPosGeracao.Executa(NotaFiscal notaFiscal)
+        {
+            Console.WriteLine("Enviando nota fiscal para {0}", notaFiscal.RazaoSocial);
+        }
+    }
+
+    class NotaFiscalDAO : IAcaoNotaPosGeracao
+    {
+        public void Executa(NotaFiscal notaFiscal)
+        {
+            Console.WriteLine("Salvando nota fiscal de {0}", notaFiscal.RazaoSocial);
+        }
+    }
+
+    class Multiplicador : IAcaoNotaPosGeracao
+    {
+        public double Fator { get; private set; }
+
+        public Multiplicador(double fator)
+        {
+            this.Fator = fator;
+        }
+
+        public void Executa(NotaFiscal notaFiscal)
+        {
+            Console.WriteLine("Valor Bruto ({2}) multiplicado por {0} é igual a {1}",this.Fator, notaFiscal.ValorBruto * this.Fator, notaFiscal.ValorBruto);
         }
     }
 
@@ -133,6 +183,9 @@ namespace Builder
                 .ComCNPJ("2992929292")
                 .ComItem(new ItemDaNota("prod1", 100))
                 .ComObservacoes("observacao")
+                .AdicionaAcao(new NotaFiscalDAO())
+                .AdicionaAcao(new EnviaEmail())
+                .AdicionaAcao(new Multiplicador(2))
                 .Constroi();
 
             Show(notaFiscalDataAtual);
@@ -142,7 +195,7 @@ namespace Builder
                 .ComCNPJ("2992929292")
                 .ComItem(new ItemDaNota("prod1", 300))
                 .ComObservacoes("observacao")
-                .ComDataEmissaoEspecifica(new DateTime(1978,5,3))
+                .ComDataEmissaoEspecifica(new DateTime(1978, 5, 3))
                 .Constroi();
 
             Show(notaFiscalDataEspecifica);
